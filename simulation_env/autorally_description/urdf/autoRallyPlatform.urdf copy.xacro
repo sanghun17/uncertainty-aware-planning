@@ -264,16 +264,14 @@ limitations under the License.
       <collision name="collision">
         <origin xyz="0 0 0"/>
         <geometry>
-          <!-- <mesh filename="${wheel_model}" /> -->
-          <cylinder length="0.1" radius="0.09"/>
+          <mesh filename="${wheel_model}" />
         </geometry>
       </collision>
 
       <collision name="material">
         <origin xyz="0 0 0"/>
         <geometry>
-          <!-- <mesh filename="${wheel_model}" /> -->
-          <cylinder length="0.1" radius="0.09"/>
+          <mesh filename="${wheel_model}" />
         </geometry>
       </collision>
 
@@ -392,8 +390,7 @@ limitations under the License.
               rpy="0 0 0"/>
 
       <geometry>
-        <!-- <mesh filename="package://autorally_description/urdf/cad/Vehicle_Texture.dae" scale="1 1 1" /> -->
-        <box size="0.01 0.01 0.01"/>
+        <mesh filename="package://autorally_description/urdf/cad/Vehicle_Texture.dae" scale="1 1 1" />
       </geometry>
     </collision>
 

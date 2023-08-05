@@ -18,6 +18,9 @@
               <mu2>30</mu2>
             </ode>
           </friction>
+           <contact>
+              <collide_bitmask>0xffff</collide_bitmask>        
+          </contact>
         </surface>
         </collision>
         <visual name="visual_abcedf">

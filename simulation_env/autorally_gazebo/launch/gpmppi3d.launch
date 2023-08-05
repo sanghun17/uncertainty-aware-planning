@@ -33,7 +33,7 @@ limitations under the License.
 
   <env name="GAZEBO_MODEL_PATH" value="$(find autorally_description)"/>
   <env name="GAZEBO_RESOURCE_PATH" value="$(find autorally_description)"/>
-  <arg name="namespace" default=""/>
+  <arg name="namespace" default="/"/>
   <arg name="world_name" default="model://urdf/worlds/postoffice_with_mud10.world"/>
   <arg name="cmd_timeout" default="0.5"/>
 
@@ -52,14 +52,10 @@ limitations under the License.
   <node if="$(arg rviz)" pkg="rviz" type="rviz" name="$(anon rviz)" respawn="false" output="screen" args="-d $(find velodyne_description)/rviz/example.rviz" /> -->
 
 
-
-
   <!-- Vehicle pose -->
-  <!-- <arg name="x" default="-23.6102"/>
-  <arg name="y" default="-10.7679"/> -->
-  <arg name="x" default="-17.7102"/>
-  <arg name="y" default="-17.0779"/>
-  <arg name="z" default="0.1"/>
+  <arg name="x" default="0.7102"/>
+  <arg name="y" default="-2.0779"/>
+  <arg name="z" default="0.3"/>
   <arg name="roll" default="0.0"/>
   <arg name="pitch" default="0.0"/>
   <arg name="yaw" default="0.85"/>

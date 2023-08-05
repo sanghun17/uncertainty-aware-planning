@@ -22,18 +22,18 @@
     <include>
       <uri>model://urdf/models/sun</uri>
     </include>
-    <include>
+    <!-- <include>
       <name>track</name>
       <uri>model://urdf/models/track</uri>
       <pose>0 0 0.0762 0 0 0.785398</pose>
-    </include>
+    </include> -->
     <include>
       <name>blended_plane</name>
       <uri>model://urdf/models/blended_track</uri>
       <pose>0 0 0 0 0 0.785398</pose>
     </include>
     <!-- A ground plane -->
-    <include>
+    <!-- <include>
       <name>tree</name>
       <uri>model://urdf/models/tree</uri>
       <pose>0 0 0 0 0 0</pose>
@@ -147,6 +147,6 @@
       <name>cinder_block_wide_3</name>
       <uri>model://cinder_block_wide</uri>
       <pose>13.35 5.4 0.28 0 0 0</pose>
-    </include>
+    </include> -->
   </world>
 </sdf>
