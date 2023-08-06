@@ -50,8 +50,8 @@ class LocalMap:
 
         # Compute the new tick positions and labels based on the cell_size
         constant_multiplier = self.cell_size
-        x_ticks = np.arange(0, self.lidar_map.shape[1] + 1, constant_multiplier)
-        y_ticks = np.arange(0, self.lidar_map.shape[0] + 1, constant_multiplier)
+        x_ticks = np.arange(width/2-cell_size, -width/2-cell_size, -constant_multiplier)
+        y_ticks = np.arange(height/2-cell_size, -height/2-cell_size, -constant_multiplier)
 
         self.ax1.set_xticks(np.arange(self.lidar_map.shape[1]) + 0.5, minor=False)
         self.ax1.set_yticks(np.arange(self.lidar_map.shape[0]) + 0.5, minor=False)
@@ -69,8 +69,8 @@ class LocalMap:
 
         # Compute the new tick positions and labels based on the cell_size
         constant_multiplier = self.cell_size
-        x_ticks = np.arange(0, self.camera_map.shape[1] + 1, constant_multiplier)
-        y_ticks = np.arange(0, self.camera_map.shape[0] + 1, constant_multiplier)
+        x_ticks = np.arange(width/2-cell_size, -width/2-cell_size, -constant_multiplier)
+        y_ticks = np.arange(height/2-cell_size, -height/2-cell_size, -constant_multiplier)
 
         self.ax2.set_xticks(np.arange(self.camera_map.shape[1]) + 0.5, minor=False)
         self.ax2.set_yticks(np.arange(self.camera_map.shape[0]) + 0.5, minor=False)
@@ -137,9 +137,9 @@ class LiDAR2MapProjection:
             return
 
         try:
-            self.Tv2b = self.tf_buffer.lookup_transform("velodyne_base_link", "base_link", rospy.Time(0), rospy.Duration(2.0))
+            self.Tv2b = self.tf_buffer.lookup_transform("velodyne", "base_link", rospy.Time(0), rospy.Duration(2.0))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-            rospy.logwarn("Could not get the base_link to velodyne_base_link transformation.")
+            rospy.logwarn("Could not get the base_link to velodyne transformation.")
             return
         
         # Combine the transformations to get the LiDAR to camera transformation
@@ -176,18 +176,18 @@ class LiDAR2MapProjection:
         map_cnt_camera = np.zeros((int(map_width/cell_size), int(map_height/cell_size)))
 
         for point in pc2.read_points(msg, skip_nans=True):
-            x, y, z = point[:3]
-            z = -z
-
+            x, y, z_orig = point[:3]
+            z = z_orig - self.Tv2b.transform.translation.z + 0.25 # -.25: chasis height
             # Project LIDAR points onto the local map without transformation
-            grid_x_lidar = int(x / cell_size) + projected_map_lidar.shape[0] // 2
-            grid_y_lidar = int(y / cell_size) + projected_map_lidar.shape[1] // 2
-
+            grid_x_lidar = -int(x / cell_size) + projected_map_lidar.shape[0] // 2
+            grid_y_lidar = -int(y / cell_size) + projected_map_lidar.shape[1] // 2
+            
             if 0 <= grid_x_lidar < projected_map_lidar.shape[0] and 0 <= grid_y_lidar < projected_map_lidar.shape[1]:
-                projected_map_lidar[grid_x_lidar, grid_y_lidar] += (z + self.Tv2b.transform.translation.z)  # -0.25: z of baselink2lidar TF
+                projected_map_lidar[grid_x_lidar, grid_y_lidar] += z  # -0.25: z of baselink2lidar TF
                 map_cnt_lidar[grid_x_lidar, grid_y_lidar] = map_cnt_lidar[grid_x_lidar, grid_y_lidar]+1
                 # Transform the point from the LiDAR frame to the camera frame
-                lidar_point = np.array([x, y, z, 1.0])  # Homogeneous coordinates
+                # lidar_point = np.array([x, y, (z -(- self.Tv2b.transform.translation.z + 0.25)), 1.0])  # Homogeneous coordinates
+                lidar_point = np.array([x, y, z_orig , 1.0])
                 camera_point = np.dot(self.Tv2c, lidar_point)
                 x_camera = camera_point[0]
                 y_camera = camera_point[1]
@@ -241,7 +241,7 @@ class LiDAR2MapProjection:
         self.image = cv_image
         # (rows,cols,channels) = cv_image.shape
         # print(rows,cols,channels)
-        cv2.imshow("Image window", cv_image)
+        # cv2.imshow("Image window", cv_image)
 
     def get_pixel_color_from_image(self, x, y):
         if self.image is None:
@@ -347,7 +347,7 @@ class Plotter:
         self.fig.canvas.draw_idle()
 
     def update_map(self, x, y, yaw):
-        local_map.PlotLiDAROnOtherFigure(self.ax, position=[x, y], angle=yaw+3.141592/2.0)
+        local_map.PlotLiDAROnOtherFigure(self.ax, position=[x, y], angle=yaw-3.141592/2.0)
         self.fig.canvas.draw_idle()
 
     def update(self, frame):
@@ -365,7 +365,7 @@ if __name__ == '__main__':
     rospy.init_node('lidar_map_projection_node')
     plt.switch_backend('Qt5Agg')
     # Set the map parameters
-    width, height, cell_size = 10, 10, 0.5
+    width, height, cell_size = 6, 6, 0.25
     # Create an instance of the LocalMap class
     local_map = LocalMap(width, height, cell_size)
     # Create an instance of the LiDAR2MapProjection class and pass the LocalMap object
