@@ -106,16 +106,20 @@
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>1 1 1</size>
-            </box>
+           <origin xyz="0 0 1"/>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2</length>
+        </cylinder>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>1 1 1</size>
-            </box>
+           <origin xyz="0 0 1"/>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2</length>
+        </cylinder>
           </geometry>
           <material>
             <ambient>1 0 0 1</ambient>
@@ -1601,10 +1605,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -1649,10 +1654,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -2162,10 +2168,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -2995,10 +3002,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3043,10 +3051,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3091,10 +3100,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3139,10 +3149,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3279,10 +3290,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3327,10 +3339,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3375,10 +3388,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3423,10 +3437,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3471,10 +3486,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3519,10 +3535,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3567,10 +3584,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3615,10 +3633,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3663,10 +3682,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>
@@ -3711,10 +3731,11 @@
           </inertia>
         </inertial>
          <collision name='collision'>
-          <geometry>
-            <box>
-              <size>1 1 2</size>
-            </box>
+<geometry>
+<cylinder>
+          <radius>0.25</radius>
+          <length>2.5</length>
+        </cylinder>
           </geometry>
           <max_contacts>20</max_contacts>
           <surface>

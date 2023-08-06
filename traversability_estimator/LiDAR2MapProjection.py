@@ -4,6 +4,7 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from nav_msgs.msg import Odometry
+from grid_map_msgs.msg import GridMap
 import tf2_ros
 from geometry_msgs.msg import TransformStamped
 import sensor_msgs.point_cloud2 as pc2
@@ -17,6 +18,9 @@ import cv2
 from cv_bridge import CvBridge
 import tf.transformations
 import tf
+from scipy.ndimage import rotate
+from scipy.ndimage import zoom
+
 matplotlib.use('Qt5Agg')  # Set the backend to Qt5Agg
 
 class LocalMap:
@@ -57,6 +61,9 @@ class LocalMap:
         self.ax1.set_yticks(np.arange(self.lidar_map.shape[0]) + 0.5, minor=False)
         self.ax1.set_xticklabels(x_ticks)
         self.ax1.set_yticklabels(y_ticks)
+        self.ax1.set_xticklabels([f'{val:.2f}' for val in x_ticks])
+        self.ax1.set_yticklabels([f'{val:.2f}' for val in y_ticks])
+
         
         self.cbar.update_normal(self.im)  # Update the colorbar
         self.fig1.canvas.draw_idle()
@@ -99,28 +106,90 @@ class LocalMap:
         im.set_transform(trans)
         ax2.set_title('Heatmap on Another Figure')  # Add a title for the plot
 
-    # sdef PlotCameraROnOtherFigure(self, ax2, position, angle):
-    #     # Get the heatmap data from the local_map
-    #     heatmap_data = self.camera_map
-    #     # Remove the previous heatmap on ax2 if it exists
-    #     for artist in ax2.get_children():
-    #         if isinstance(artist, AxesImage) and artist.get_cmap().name == 'viridis':
-    #             artist.remove()
-    #     # Calculate the dimensions of the heatmap
-    #     map_width, map_height = self.map_shape[0], self.map_shape[1]
-    #     # Calculate the center of the heatmap
-    #     center_x,center_y = position[0],position[1]
-    #     # Calculate the extent of the heatmap
-    #     extent = [center_x - map_width / 2, center_x + map_width / 2, center_y - map_height / 2, center_y + map_height / 2]
-    #     # Plot the heatmap on ax2 using imshow with additional transformations
-    #     im = ax2.imshow(heatmap_data, cmap='viridis', extent=extent, interpolation='none')
-    #     # Apply the transformations to the image
-    #     trans = Affine2D().rotate_around(center_x, center_y, angle) + ax2.transData
-    #     im.set_transform(trans)
-    #     ax2.set_title('Heatmap on Another Figure')  # Add a title for the plot
-
     def show(self):
         plt.show()
+
+class GridMapp:
+    def __init__(self,width, height,robot_pose_handler):
+        self.resolution = 0.5
+        self.width = width
+        self.height = height
+        self.grid_map_crop = np.zeros((int(width/self.resolution), int(height/self.resolution)))
+        self.robot_pose_handler = robot_pose_handler
+        self.fig1, self.ax1 = plt.subplots()
+        self.ax1.set_title('Local Traversability Map')  # Add a title for the plot
+        self.im = self.ax1.imshow(self.grid_map_crop, cmap='viridis', interpolation='none', aspect='auto')
+        self.cbar = self.fig1.colorbar(self.im)
+
+    def GetResolution(self):
+        return self.resolution
+    
+    def UpdateGridMap(self, msg):
+        x, y, yaw = self.robot_pose_handler.GetPose()
+        # print(self.length_x )
+        info = msg.info
+        self.position = [info.pose.position.x , info.pose.position.y]
+        length_x = info.length_x
+        length_y = info.length_y
+        self.resolution =info.resolution
+        map_shape = [length_x/self.resolution, length_y/self.resolution]
+        grid_map = np.array(msg.data[9].data)
+        grid_map = grid_map.reshape( int(map_shape[1]), int(map_shape[0]))
+        # self.grid_map = np.rot90(self.grid_map , k=-1)
+        # self.grid_map=self.rotate_array(self.grid_map,(-yaw*180.0/3.141592)-90)
+        grid_map=self.rotate_array(grid_map,(yaw*180.0/3.141592)+90)
+        grid_map = np.flipud(grid_map)
+        grid_map = np.roll(grid_map, +3, axis=0)
+        self.grid_map_crop = self.grid_zoom(grid_map,self.width/length_x ,self.height/length_y)
+        # print(self.grid_map)
+        # print(self.width/ self.length_x)
+        # print(self.height/ self.length_y)
+        
+        # print(self.grid_map)
+        # # print(traversability_data)
+        # print("length_x, length_y: ",self.length_x,self.length_y)
+        # print("resolution: ",self.resolution)
+        # print("map shape: ",int(self.map_shape[0]), int(self.map_shape[1])) 
+        # print("grid map:",self.grid_map)
+
+        self.im.set_data(self.grid_map_crop)  # Update the heatmap data
+        self.im.set_clim(vmin=np.min(self.grid_map_crop), vmax=np.max(self.grid_map_crop))  # Update the colorbar limits
+        # self.im.set_clim(vmin=np.min(self.lidar_map), vmax=1.0)  # Update the colorbar limits
+
+        # Compute the new tick positions and labels based on the cell_size
+        constant_multiplier = self.resolution
+        x_ticks = np.arange(self.width/2-constant_multiplier, -self.width/2-constant_multiplier, -constant_multiplier)
+        y_ticks = np.arange(self.height/2-constant_multiplier, -self.height/2-constant_multiplier, -constant_multiplier)
+
+        self.ax1.set_xticks(np.arange(self.grid_map_crop.shape[1]) + 0.5, minor=False)
+        self.ax1.set_yticks(np.arange(self.grid_map_crop.shape[0]) + 0.5, minor=False)
+        self.ax1.set_xticklabels(x_ticks)
+        self.ax1.set_yticklabels(y_ticks)
+        self.ax1.set_xticklabels([f'{val:.2f}' for val in x_ticks])
+        self.ax1.set_yticklabels([f'{val:.2f}' for val in y_ticks])
+        
+        self.cbar.update_normal(self.im)  # Update the colorbar
+        self.fig1.canvas.draw_idle()
+        return
+    
+    def show(self):
+        plt.show()
+
+    def rotate_array(self,data_2d, angle_deg):
+        center = (np.array(data_2d.shape)+np.array([0.0, 0.0])) / 2.0
+        rotation_matrix = cv2.getRotationMatrix2D(tuple(center[::-1]), angle_deg, scale=1.0)
+
+        # Perform the rotation using warpAffine with interpolation
+        rotated_array = cv2.warpAffine(data_2d, rotation_matrix, data_2d.shape[::-1], flags=cv2.INTER_LINEAR)
+        return rotated_array
+    
+    def grid_zoom(self,data_2d,zoom_factor_x,zoom_factor_y):
+      crop_rows = int(data_2d.shape[0] * (1 - zoom_factor_y))
+      crop_cols = int(data_2d.shape[1] * (1 - zoom_factor_x))
+      # Crop the array to remove the outer rows and columns
+      cropped_array = data_2d[crop_rows//2 : -crop_rows//2, crop_cols//2 : -crop_cols//2]
+    #   print(cropped_array)
+      return cropped_array
 
 class LiDAR2MapProjection:
     def __init__(self, local_map):
@@ -131,7 +200,8 @@ class LiDAR2MapProjection:
 
         # Get the transformation from "base_link" to "camera_link"
         try:
-            self.Tb2c = self.tf_buffer.lookup_transform("base_link", "camera_link", rospy.Time(0), rospy.Duration(2.0))
+            self.Tb2c = self.tf_buffer.lookup_transform("base_link", "left_camera_optical_frame", rospy.Time(0), rospy.Duration(2.0))
+            print(self.Tb2c)
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             rospy.logwarn("Could not get the base_link to camera_link transformation.")
             return
@@ -148,7 +218,8 @@ class LiDAR2MapProjection:
         # Next, transform from "velodyne_base_link" to "base_link" and store the result in the variable `self.transform_base_to_lidar`
         # self.Tv2b  = tf2_geometry_msgs.do_transform_pose(tf2_geometry_msgs.PoseStamped(), self.Tv2b)
         self.Tv2c  = self.combine_transformations(self.Tv2b, self.Tb2c)
-        # print("self.Tv2c ")
+        self.Tv2c[:,3]=-100.0
+        print("self.Tv2c ",self.Tv2c)
 
 
         # Finally, combine the transformations to get the LiDAR to camera transformation
@@ -179,7 +250,7 @@ class LiDAR2MapProjection:
             x, y, z_orig = point[:3]
             z = z_orig - self.Tv2b.transform.translation.z + 0.25 # -.25: chasis height
             # Project LIDAR points onto the local map without transformation
-            grid_x_lidar = -int(x / cell_size) + projected_map_lidar.shape[0] // 2
+            grid_x_lidar = -int(x / cell_size) + projected_map_lidar.shape[0]
             grid_y_lidar = -int(y / cell_size) + projected_map_lidar.shape[1] // 2
             
             if 0 <= grid_x_lidar < projected_map_lidar.shape[0] and 0 <= grid_y_lidar < projected_map_lidar.shape[1]:
@@ -188,20 +259,18 @@ class LiDAR2MapProjection:
                 # Transform the point from the LiDAR frame to the camera frame
                 # lidar_point = np.array([x, y, (z -(- self.Tv2b.transform.translation.z + 0.25)), 1.0])  # Homogeneous coordinates
                 lidar_point = np.array([x, y, z_orig , 1.0])
-                camera_point = np.dot(self.Tv2c, lidar_point)
+                camera_point = np.dot(lidar_point,self.Tv2c)
                 x_camera = camera_point[0]
                 y_camera = camera_point[1]
                 z_camera = camera_point[2]
 
+                # Project the transformed 3D point back to the camera image
+                # u = self.fx * ((-y_camera )/ x_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
+                # v = self.fy * (-z_camera / x_camera) + self.cy
+                u = self.fx * ((x_camera )/ z_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
+                v = self.fy * (y_camera / z_camera) + self.cy
 
-
-                # Project the transformed 3D point back to the camera image plane
-                # u = self.fx * (x_camera / z_camera) + self.cx
-                # v = self.fy * (y_camera / z_camera) + self.cy
-                u = self.fx * (-y_camera / x_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
-                v = self.fy * (-z_camera / x_camera) + self.cy
-
-                # print("x,y,z: ",x,y,z)
+                # print("x,y,z: ",x,y,z_orig)
                 # print("c x,y,z: ",x_camera,y_camera,z_camera)
                 # print("u, v: ", u,v)
 
@@ -359,19 +428,24 @@ class Plotter:
         # Show the final plot with the updated map and pose
         plt.show()
 
-# Rest of the code...
+
 
 if __name__ == '__main__':
     rospy.init_node('lidar_map_projection_node')
     plt.switch_backend('Qt5Agg')
     # Set the map parameters
-    width, height, cell_size = 6, 6, 0.25
+    robot_pose_handler = RobotPose()
+    width, height = 10,10
+    grid_map = GridMapp(width, height,robot_pose_handler)
+    cell_size = 0.5
     # Create an instance of the LocalMap class
+    print(cell_size)
     local_map = LocalMap(width, height, cell_size)
+    
     # Create an instance of the LiDAR2MapProjection class and pass the LocalMap object
     lidar_projection = LiDAR2MapProjection(local_map)
     # Create an instance of the RobotPose class to handle robot's pose
-    robot_pose_handler = RobotPose()
+    
 
     # Create an instance of the Plotter class and pass the LocalMap and RobotPose objects
     plotter = Plotter(local_map, robot_pose_handler)
@@ -381,9 +455,11 @@ if __name__ == '__main__':
     # Subscribe to the /ground_truth/state topic with the Odometry message
     rospy.Subscriber('/ground_truth/state', Odometry, robot_pose_handler.update_pose)
     rospy.Subscriber('/left_camera/image_raw',Image, lidar_projection.UpdateImage)
+    rospy.Subscriber('/traversability_estimation/traversability_map',GridMap, grid_map.UpdateGridMap)
 
     anim = FuncAnimation(plotter.fig, plotter.update, interval=50, blit=False)
 
     # Show the animation
     plotter.show()
     local_map.show()
+    grid_map.show()
