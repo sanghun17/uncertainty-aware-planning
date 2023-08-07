@@ -2,32 +2,34 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
 
-class FakeLidarDataset(Dataset):
-    def __init__(self):
-        self.height = 48
-        self.width = 64
-        self.data_size = 200
-        self.samples = []
-        for i in range(self.data_size):
-            sample = torch.rand(self.width,self.height)
-            self.samples.append(sample)
-        
+class CustomDataset(Dataset):
+    def __init__(self, data_folder):
+        self.data_folder = data_folder
+        self.data_files = []
+
+        # Iterate through all subfolders inside the main data folder
+        for subfolder in os.listdir(self.data_folder):
+            subfolder_path = os.path.join(self.data_folder, subfolder)
+
+            # Check if the item in the data folder is a subfolder
+            if os.path.isdir(subfolder_path):
+                # Get all the data files inside the subfolder
+                subfolder_files = [os.path.join(subfolder_path, filename) for filename in os.listdir(subfolder_path)]
+                self.data_files.extend(subfolder_files)
+
     def __len__(self):
-        return len(self.samples)
+        return len(self.data_files)
 
     def __getitem__(self, idx):
-        return self.samples[idx]
+        file_path = self.data_files[idx]
+        data_dict = torch.load(file_path)
+        lidar_map = data_dict['lidar_map']
+        camera_map = data_dict['camera_map']
+        grid_map = data_dict['grid_map']
+        return lidar_map, camera_map, grid_map
     
-def FakeTraversaibiltyEvalutaion(batch):
-    sum_per_sample = torch.sum(batch, dim=(2, 3))  # Sum along height and width dimensions
-    # Reshape the sum tensor to have shape (batch_size, 1)
-    sum_per_sample = sum_per_sample.view(-1, 1)
-    return sum_per_sample
-    
-
-    
-
 class NeuralNetwork(nn.Module):
     def __init__(self, input_channel, hidden_size, output_size, input_height, input_width):
         super(NeuralNetwork, self).__init__()
@@ -57,10 +59,11 @@ class NeuralNetwork_SH(nn.Module):
         x = self.fc1(x)
         return x
     
-
-
 if __name__ == '__main__':
-    dataset = FakeLidarDataset()
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    data_folder = 'data'
+    absolute_data_folder = os.path.join(current_dir, data_folder)
+    dataset = CustomDataset(data_folder=absolute_data_folder)
     dataset_size=len(dataset)
     print("dataset_size: ", dataset_size)
     

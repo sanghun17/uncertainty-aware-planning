@@ -20,8 +20,19 @@ import tf.transformations
 import tf
 from scipy.ndimage import rotate
 from scipy.ndimage import zoom
+import torch
+from datetime import datetime
+import os
+import time
+
+# TODO: 
+# camera bev projection does not work well about near object.
+# about dataset save, detect anormaly. (some map is stopped to be updated.)
+
 
 matplotlib.use('Qt5Agg')  # Set the backend to Qt5Agg
+
+data_dict = {}
 
 class LocalMap:
     def __init__(self, width, height, cell_size):
@@ -64,6 +75,8 @@ class LocalMap:
         self.ax1.set_xticklabels([f'{val:.2f}' for val in x_ticks])
         self.ax1.set_yticklabels([f'{val:.2f}' for val in y_ticks])
 
+        data_dict['lidar_map'] = torch.tensor(self.lidar_map, dtype=torch.float32)
+
         
         self.cbar.update_normal(self.im)  # Update the colorbar
         self.fig1.canvas.draw_idle()
@@ -83,6 +96,8 @@ class LocalMap:
         self.ax2.set_yticks(np.arange(self.camera_map.shape[0]) + 0.5, minor=False)
         self.ax2.set_xticklabels(x_ticks)
         self.ax2.set_yticklabels(y_ticks)
+
+        data_dict['camera_map'] = torch.tensor(self.camera_map, dtype=torch.float32)
         
         self.fig2.canvas.draw_idle()
 
@@ -120,6 +135,14 @@ class GridMapp:
         self.ax1.set_title('Local Traversability Map')  # Add a title for the plot
         self.im = self.ax1.imshow(self.grid_map_crop, cmap='viridis', interpolation='none', aspect='auto')
         self.cbar = self.fig1.colorbar(self.im)
+
+
+        current_time = time.strftime("%Y%m%d_%H%M%S")
+
+        # Create a folder with the current time as the name
+        self.folder_name = 'input/data/'+current_time
+        os.makedirs(self.folder_name, exist_ok=True)
+
 
     def GetResolution(self):
         return self.resolution
@@ -168,6 +191,16 @@ class GridMapp:
         self.ax1.set_xticklabels([f'{val:.2f}' for val in x_ticks])
         self.ax1.set_yticklabels([f'{val:.2f}' for val in y_ticks])
         
+        data_dict['grid_map'] = torch.tensor(self.grid_map_crop, dtype=torch.float32)
+        current_time = time.strftime("%Y%m%d_%H%M%S")
+        file_path = os.path.join(self.folder_name, f'{current_time}.pt')
+        grid_map = data_dict['grid_map']
+        
+        # Ensure that all maps have the same spatial dimensions (20x20)
+        if grid_map.size()  == (20, 20) :
+            torch.save(data_dict, file_path)
+            print("dataset saved! :",file_path)
+
         self.cbar.update_normal(self.im)  # Update the colorbar
         self.fig1.canvas.draw_idle()
         return
@@ -445,7 +478,6 @@ if __name__ == '__main__':
     # Create an instance of the LiDAR2MapProjection class and pass the LocalMap object
     lidar_projection = LiDAR2MapProjection(local_map)
     # Create an instance of the RobotPose class to handle robot's pose
-    
 
     # Create an instance of the Plotter class and pass the LocalMap and RobotPose objects
     plotter = Plotter(local_map, robot_pose_handler)
@@ -457,9 +489,11 @@ if __name__ == '__main__':
     rospy.Subscriber('/left_camera/image_raw',Image, lidar_projection.UpdateImage)
     rospy.Subscriber('/traversability_estimation/traversability_map',GridMap, grid_map.UpdateGridMap)
 
-    anim = FuncAnimation(plotter.fig, plotter.update, interval=50, blit=False)
+    # anim = FuncAnimation(plotter.fig, plotter.update, interval=50, blit=False)
 
     # Show the animation
-    plotter.show()
-    local_map.show()
-    grid_map.show()
+    # plotter.show()
+    # local_map.show()
+    # grid_map.show()
+
+    rospy.spin()
