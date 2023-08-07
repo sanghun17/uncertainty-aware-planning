@@ -8,3 +8,5 @@ FORCESNLPsolver/*
 *.pth
 *.npz
 *.bag
+*.png
+*.pt
