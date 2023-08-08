@@ -24,6 +24,8 @@ import torch
 from datetime import datetime
 import os
 import time
+from torchvision.utils import save_image
+
 
 # TODO: 
 # camera bev projection does not work well about near object.
@@ -201,6 +203,15 @@ class GridMapp:
             torch.save(data_dict, file_path)
             print("dataset saved! :",file_path)
 
+            # grid_map_4d = grid_map.unsqueeze(0)
+            # image_path = os.path.join(self.folder_name, f'{current_time}_lidar.png')
+            # save_image(grid_map_4d.cpu(), image_path, nrow=1)
+
+            # camera_map_4d = data_dict['camera_map'].unsqueeze(0)
+            # camera_map_4d = camera_map_4d.permute(0, 3, 1, 2)  # Change the order of dimensions
+            # image_path = os.path.join(self.folder_name, f'{current_time}_camera.png')
+            # save_image(camera_map_4d.cpu(), image_path, nrow=1)
+
         self.cbar.update_normal(self.im)  # Update the colorbar
         self.fig1.canvas.draw_idle()
         return
@@ -251,7 +262,6 @@ class LiDAR2MapProjection:
         # Next, transform from "velodyne_base_link" to "base_link" and store the result in the variable `self.transform_base_to_lidar`
         # self.Tv2b  = tf2_geometry_msgs.do_transform_pose(tf2_geometry_msgs.PoseStamped(), self.Tv2b)
         self.Tv2c  = self.combine_transformations(self.Tv2b, self.Tb2c)
-        self.Tv2c[:,3]=-100.0
         print("self.Tv2c ",self.Tv2c)
 
 
@@ -293,9 +303,9 @@ class LiDAR2MapProjection:
                 # lidar_point = np.array([x, y, (z -(- self.Tv2b.transform.translation.z + 0.25)), 1.0])  # Homogeneous coordinates
                 lidar_point = np.array([x, y, z_orig , 1.0])
                 camera_point = np.dot(lidar_point,self.Tv2c)
-                x_camera = camera_point[0]
-                y_camera = camera_point[1]
-                z_camera = camera_point[2]
+                x_camera = camera_point[0] / camera_point[3]
+                y_camera = camera_point[1] / camera_point[3]
+                z_camera = camera_point[2] / camera_point[3]
 
                 # Project the transformed 3D point back to the camera image
                 # u = self.fx * ((-y_camera )/ x_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
@@ -493,7 +503,7 @@ if __name__ == '__main__':
 
     # Show the animation
     # plotter.show()
-    # local_map.show()
-    # grid_map.show()
+    local_map.show()
+    grid_map.show()
 
     rospy.spin()

@@ -31,10 +31,7 @@ class CustomDataset(Dataset):
                 subfolder_files = [os.path.join(subfolder_path, filename) for filename in os.listdir(subfolder_path)]
                 self.data_files.extend(subfolder_files)
 
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5], std=[0.5])  # Assuming you want to normalize to [-1, 1] range
-        ])
+        self.transform_minus1_to_1 = transforms.Normalize(mean=[0.5], std=[0.5])  # Assuming you want to normalize to [-1, 1] range
 
     def __len__(self):
         return len(self.data_files)
@@ -49,8 +46,8 @@ class CustomDataset(Dataset):
         # Replace NaN values with 0
         lidar_map[torch.isnan(lidar_map)] = 0
         camera_map[torch.isnan(camera_map)] = 0
-        grid_map[torch.isnan(grid_map)] = 0
-        
+        grid_map[torch.isnan(grid_map)] = 1
+
         # Ensure that all maps have the same spatial dimensions (20x20)
         assert lidar_map.size() == (20, 20), lidar_map.size()
         assert camera_map.size()  == (20, 20, 3), camera_map.size()
@@ -60,8 +57,16 @@ class CustomDataset(Dataset):
         lidar_map = lidar_map.unsqueeze(2)  # shape: 20x20x1
         grid_map = grid_map.unsqueeze(2)  # shape: 20x20x1
 
+        # lidar_map = self.transform_minus1_to_1(lidar_map)
+        # grid_map = self.transform_minus1_to_1(grid_map)
+        
         # Concatenate the three maps along the channel dimension (axis=2)
+        # camera_map_reordered = torch.cat((camera_map[:, :, 0:1], camera_map[:, :, 1:2], camera_map[:, :, 2:3]), dim=2)
+
+        
         stacked_map = torch.cat([lidar_map, camera_map, grid_map], dim=2)
+        # Rearrange the dimensions of stacked_map
+        stacked_map = stacked_map.permute(2, 0, 1)  # Change the order of dimensions
         
         return stacked_map
 
@@ -73,7 +78,7 @@ args = vars(parser.parse_args())
 
 # leanring parameters
 epochs = args['epochs']
-batch_size = 10
+batch_size = 32
 lr = 0.0001
 # Get Device for Training
 device = (
@@ -84,11 +89,6 @@ device = (
     else "cpu"
     )
 print(f"Using {device} device")
-
-# transforms
-transform = transforms.Compose([
-    transforms.ToTensor(),
-])
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 data_folder = '../input/data'
@@ -161,8 +161,8 @@ def validate(model, dataloader):
                 reconstruction=reconstruction.view(batch_size, 5, 20, 20)[:4]
                 data1 = data[:,0:1,:,:]
                 reconstruction1 = reconstruction[:,0:1,:,:]
-                data2 = data[:,2:5,:,:]
-                reconstruction2 = reconstruction[:,2:5,:,:]
+                data2 = data[:,1:4,:,:]
+                reconstruction2 = reconstruction[:,1:4,:,:]
                 data3 = data[:,4:5,:,:]
                 reconstruction3 = reconstruction[:,4:5,:,:]
                 both_image1 = torch.cat((data1,reconstruction1))
