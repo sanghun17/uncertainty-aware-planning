@@ -2,25 +2,20 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-features = 64
+features = 16
 # define a simple linear VAE
 class LinearVAE(nn.Module):
     def __init__(self):
         super(LinearVAE, self).__init__()
  
         # encoder
-        self.conv_layer1 = nn.Conv2d(in_channels=5, out_channels=32, kernel_size=5, stride=2)
-        self.conv_layer2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
-        # self.conv_layer3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2)
-        
-        # Calculate the spatial dimensions after applying the convolutions
-        self.fc1 = nn.Linear(64*3*3, 256)
-        self.fc2 = nn.Linear(256, 128)
+        self.enc1 = nn.Linear(in_features=2000, out_features=512)
+        self.enc2 = nn.Linear(in_features=512, out_features=features*2)
+ 
         # decoder 
         self.dec1 = nn.Linear(in_features=features, out_features=512)
-        self.dec2 = nn.Linear(in_features=512, out_features=20*20*5)
+        self.dec2 = nn.Linear(in_features=512, out_features=2000)
 
-    
     def reparameterize(self, mu, log_var):
         """
         :param mu: mean from the encoder's latent space
@@ -33,17 +28,8 @@ class LinearVAE(nn.Module):
  
     def forward(self, x):
         # encoding
-        # Apply convolutional layers
-        x = F.relu(self.conv_layer1(x))
-        x = F.relu(self.conv_layer2(x))
-        # x = F.relu(self.conv_layer3(x))
-        # Flatten the output
-        x = x.view(x.size(0), -1)
-        
-        # Apply fully connected layers
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = x.view(-1, 2, features)
+        x = F.relu(self.enc1(x))
+        x = self.enc2(x).view(-1, 2, features)
         # get `mu` and `log_var`
         mu = x[:, 0, :] # the first feature values as mean
         log_var = x[:, 1, :] # the other feature values as variance

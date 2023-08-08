@@ -78,7 +78,7 @@ args = vars(parser.parse_args())
 
 # leanring parameters
 epochs = args['epochs']
-batch_size = 32
+batch_size = 16
 lr = 0.0001
 # Get Device for Training
 device = (
@@ -127,10 +127,11 @@ def fit(model, dataloader):
     for i, data in tqdm(enumerate(dataloader), total=int(len(train_data)/dataloader.batch_size)):
         # data, _ = data
         data = data.to(device)
-        data = data.view(data.size(0), -1)
+        # print(data.size())
+        # data = data.view(data.size(0), -1)
         optimizer.zero_grad()
         reconstruction, mu, logvar = model(data)
-        bce_loss = criterion(reconstruction, data)
+        bce_loss = criterion(reconstruction, data.view(data.size(0), -1))
         loss = final_loss(bce_loss, mu, logvar)
         running_loss += loss.item()
         loss.backward()
@@ -146,9 +147,9 @@ def validate(model, dataloader):
         for i, data in tqdm(enumerate(dataloader), total=int(len(val_data)/dataloader.batch_size)):
             # data, _ = data
             data = data.to(device)
-            data = data.view(data.size(0), -1)
+            # data = data.view(data.size(0), -1)
             reconstruction, mu, logvar = model(data)
-            bce_loss = criterion(reconstruction, data)
+            bce_loss = criterion(reconstruction, data.view(data.size(0), -1))
             loss = final_loss(bce_loss, mu, logvar)
             running_loss += loss.item()
         
