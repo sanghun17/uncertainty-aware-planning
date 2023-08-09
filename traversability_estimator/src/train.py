@@ -14,7 +14,11 @@ from tqdm import tqdm
 from torchvision import datasets
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
+from torch.utils.tensorboard import SummaryWriter  # Import SummaryWriter from torch.utils.tensorboard
+
 matplotlib.style.use('ggplot')
+
+writer = SummaryWriter()
 
 class CustomDataset(Dataset):
     def __init__(self, data_folder):
@@ -57,13 +61,6 @@ class CustomDataset(Dataset):
         lidar_map = lidar_map.unsqueeze(2)  # shape: 20x20x1
         grid_map = grid_map.unsqueeze(2)  # shape: 20x20x1
 
-        # lidar_map = self.transform_minus1_to_1(lidar_map)
-        # grid_map = self.transform_minus1_to_1(grid_map)
-        
-        # Concatenate the three maps along the channel dimension (axis=2)
-        # camera_map_reordered = torch.cat((camera_map[:, :, 0:1], camera_map[:, :, 1:2], camera_map[:, :, 2:3]), dim=2)
-
-        
         stacked_map = torch.cat([lidar_map, camera_map, grid_map], dim=2)
         # Rearrange the dimensions of stacked_map
         stacked_map = stacked_map.permute(2, 0, 1)  # Change the order of dimensions
@@ -138,6 +135,7 @@ def fit(model, dataloader):
         optimizer.step()
 
     train_loss = running_loss/len(dataloader.dataset)
+    writer.add_scalar("Train Loss", train_loss, epoch)  # Log train loss to TensorBoard
     return train_loss
 
 def validate(model, dataloader):
@@ -166,6 +164,8 @@ def validate(model, dataloader):
                 reconstruction2 = reconstruction[:,1:4,:,:]
                 data3 = data[:,4:5,:,:]
                 reconstruction3 = reconstruction[:,4:5,:,:]
+                # print(data1.size())
+                # print(reconstruction1.size())
                 both_image1 = torch.cat((data1,reconstruction1))
                 save_image(both_image1.cpu(), f"../outputs/output_{epoch}_lidar.png", nrow=num_rows)
 
@@ -176,7 +176,22 @@ def validate(model, dataloader):
                 # Save the third image using the fifth row (channel 0) of the input and output
                 both_image3 = torch.cat((data3,reconstruction3))
                 save_image(both_image3.cpu(), f"../outputs/output_{epoch}_grid.png", nrow=num_rows)
+                
+                # for tensorboard!
+                data1_rgb = data1[1,:,:,:].expand(3,-1,-1)
+                data2_rgb=data2[1,:,:,:]
+                data3_rgb = data3[1,:,:,:].expand(3,-1,-1)
+                reconstruction1_rgb = reconstruction1[1,:,:,:].expand(3,-1,-1)
+                reconstruction2_rgb=reconstruction2[1,:,:,:]
+                reconstruction3_rgb = reconstruction3[1,:,:,:].expand(3,-1,-1)
+                log_image=torch.cat((torch.cat((data1_rgb,data2_rgb,data3_rgb),1),
+                                    torch.cat((reconstruction1_rgb,reconstruction2_rgb,reconstruction3_rgb),1))
+                                    ,2)
+                print(log_image.size())
+                writer.add_image("image", log_image, epoch)
+                
     val_loss = running_loss/len(dataloader.dataset)
+    writer.add_scalar("Validation Loss", val_loss, epoch)  # Log validation loss to TensorBoard
     return val_loss
 
 train_loss = []
@@ -189,3 +204,6 @@ for epoch in range(epochs):
     val_loss.append(val_epoch_loss)
     print(f"Train Loss: {train_epoch_loss:.4f}")
     print(f"Val Loss: {val_epoch_loss:.4f}")
+
+# Close the SummaryWriter when training is complete
+writer.close()

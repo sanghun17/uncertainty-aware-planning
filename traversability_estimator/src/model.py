@@ -9,12 +9,12 @@ class LinearVAE(nn.Module):
         super(LinearVAE, self).__init__()
  
         # encoder
-        self.conv_layer1 = nn.Conv2d(in_channels=5, out_channels=32, kernel_size=5, stride=2)
-        self.conv_layer2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
+        self.conv_layer1 = nn.Conv2d(in_channels=5, out_channels=32, kernel_size=5, stride=2,padding=1)
+        self.conv_layer2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2,padding=1)
         # self.conv_layer3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2)
         
         # Calculate the spatial dimensions after applying the convolutions
-        self.fc1 = nn.Linear(64*3*3, 256)
+        self.fc1 = nn.Linear(1600, 256)
         self.fc2 = nn.Linear(256, 128)
         # decoder 
         self.dec1 = nn.Linear(in_features=features, out_features=512)
