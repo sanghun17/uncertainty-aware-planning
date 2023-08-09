@@ -1,23 +1,13 @@
-import numpy as np
-import rospy
-from sensor_msgs.msg import PointCloud2
-from sensor_msgs.msg import Image
-from sensor_msgs.msg import CameraInfo
-from nav_msgs.msg import Odometry
-from grid_map_msgs.msg import GridMap
+
 import tf2_ros
 from geometry_msgs.msg import TransformStamped
 import sensor_msgs.point_cloud2 as pc2
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import seaborn as sns
 from matplotlib.transforms import Affine2D
 from matplotlib.image import AxesImage
 import matplotlib
-import cv2
 from cv_bridge import CvBridge
-import tf.transformations
-import tf
+
 from scipy.ndimage import rotate
 from scipy.ndimage import zoom
 import torch
@@ -32,9 +22,6 @@ from torchvision.utils import save_image
 # about dataset save, detect anormaly. (some map is stopped to be updated.)
 
 
-matplotlib.use('Qt5Agg')  # Set the backend to Qt5Agg
-
-data_dict = {}
 
 class LocalMap:
     def __init__(self, width, height, cell_size):
@@ -63,7 +50,6 @@ class LocalMap:
         self.lidar_map = data
         self.im.set_data(self.lidar_map)  # Update the heatmap data
         self.im.set_clim(vmin=np.min(self.lidar_map), vmax=np.max(self.lidar_map))  # Update the colorbar limits
-        # self.im.set_clim(vmin=np.min(self.lidar_map), vmax=1.0)  # Update the colorbar limits
 
         # Compute the new tick positions and labels based on the cell_size
         constant_multiplier = self.cell_size
@@ -86,8 +72,7 @@ class LocalMap:
     def UpdateCameraMap(self, data):
         assert data.shape == self.camera_map.shape, "Shape of input data and shape of map are not matched!"
         self.camera_map = data/255.0
-        self.im2.set_data(self.camera_map)  # Update the heatmap data
-        # print(self.camera_map.shape)
+        self.im2.set_data(self.camera_map)  
 
         # Compute the new tick positions and labels based on the cell_size
         constant_multiplier = self.cell_size
@@ -102,26 +87,6 @@ class LocalMap:
         data_dict['camera_map'] = torch.tensor(self.camera_map, dtype=torch.float32)
         
         self.fig2.canvas.draw_idle()
-
-    def PlotLiDAROnOtherFigure(self, ax2, position, angle):
-        # Get the heatmap data from the local_map
-        heatmap_data = self.lidar_map
-        # Remove the previous heatmap on ax2 if it exists
-        for artist in ax2.get_children():
-            if isinstance(artist, AxesImage) and artist.get_cmap().name == 'viridis':
-                artist.remove()
-        # Calculate the dimensions of the heatmap
-        map_width, map_height = self.map_shape[0], self.map_shape[1]
-        # Calculate the center of the heatmap
-        center_x,center_y = position[0],position[1]
-        # Calculate the extent of the heatmap
-        extent = [center_x - map_width / 2, center_x + map_width / 2, center_y - map_height / 2, center_y + map_height / 2]
-        # Plot the heatmap on ax2 using imshow with additional transformations
-        im = ax2.imshow(heatmap_data, cmap='viridis', extent=extent, interpolation='none')
-        # Apply the transformations to the image
-        trans = Affine2D().rotate_around(center_x, center_y, angle) + ax2.transData
-        im.set_transform(trans)
-        ax2.set_title('Heatmap on Another Figure')  # Add a title for the plot
 
     def show(self):
         plt.show()
@@ -142,9 +107,8 @@ class GridMapp:
         current_time = time.strftime("%Y%m%d_%H%M%S")
 
         # Create a folder with the current time as the name
-        self.folder_name = 'input/data/'+current_time
+        self.folder_name = '../input/data/'+current_time
         os.makedirs(self.folder_name, exist_ok=True)
-
 
     def GetResolution(self):
         return self.resolution
@@ -160,26 +124,13 @@ class GridMapp:
         map_shape = [length_x/self.resolution, length_y/self.resolution]
         grid_map = np.array(msg.data[9].data)
         grid_map = grid_map.reshape( int(map_shape[1]), int(map_shape[0]))
-        # self.grid_map = np.rot90(self.grid_map , k=-1)
-        # self.grid_map=self.rotate_array(self.grid_map,(-yaw*180.0/3.141592)-90)
         grid_map=self.rotate_array(grid_map,(yaw*180.0/3.141592)+90)
         grid_map = np.flipud(grid_map)
         grid_map = np.roll(grid_map, +3, axis=0)
         self.grid_map_crop = self.grid_zoom(grid_map,self.width/length_x ,self.height/length_y)
-        # print(self.grid_map)
-        # print(self.width/ self.length_x)
-        # print(self.height/ self.length_y)
-        
-        # print(self.grid_map)
-        # # print(traversability_data)
-        # print("length_x, length_y: ",self.length_x,self.length_y)
-        # print("resolution: ",self.resolution)
-        # print("map shape: ",int(self.map_shape[0]), int(self.map_shape[1])) 
-        # print("grid map:",self.grid_map)
 
         self.im.set_data(self.grid_map_crop)  # Update the heatmap data
         self.im.set_clim(vmin=np.min(self.grid_map_crop), vmax=np.max(self.grid_map_crop))  # Update the colorbar limits
-        # self.im.set_clim(vmin=np.min(self.lidar_map), vmax=1.0)  # Update the colorbar limits
 
         # Compute the new tick positions and labels based on the cell_size
         constant_multiplier = self.resolution
@@ -202,15 +153,6 @@ class GridMapp:
         if grid_map.size()  == (20, 20) :
             torch.save(data_dict, file_path)
             print("dataset saved! :",file_path)
-
-            # grid_map_4d = grid_map.unsqueeze(0)
-            # image_path = os.path.join(self.folder_name, f'{current_time}_lidar.png')
-            # save_image(grid_map_4d.cpu(), image_path, nrow=1)
-
-            # camera_map_4d = data_dict['camera_map'].unsqueeze(0)
-            # camera_map_4d = camera_map_4d.permute(0, 3, 1, 2)  # Change the order of dimensions
-            # image_path = os.path.join(self.folder_name, f'{current_time}_camera.png')
-            # save_image(camera_map_4d.cpu(), image_path, nrow=1)
 
         self.cbar.update_normal(self.im)  # Update the colorbar
         self.fig1.canvas.draw_idle()
@@ -256,17 +198,8 @@ class LiDAR2MapProjection:
             rospy.logwarn("Could not get the base_link to velodyne transformation.")
             return
         
-        # Combine the transformations to get the LiDAR to camera transformation
-        # First, transform from "base_link" to "camera_link" and store the result in the variable `self.transform_base_to_camera`
-        # self.Tb2c  = tf2_geometry_msgs.do_transform_pose(tf2_geometry_msgs.PoseStamped(), self.Tb2c )
-        # Next, transform from "velodyne_base_link" to "base_link" and store the result in the variable `self.transform_base_to_lidar`
-        # self.Tv2b  = tf2_geometry_msgs.do_transform_pose(tf2_geometry_msgs.PoseStamped(), self.Tv2b)
         self.Tv2c  = self.combine_transformations(self.Tv2b, self.Tb2c)
         print("self.Tv2c ",self.Tv2c)
-
-
-        # Finally, combine the transformations to get the LiDAR to camera transformation
-        # write code here
 
         # Get the camera intrinsic parameters from the CameraInfo topic
         camera_info_topic = "/left_camera/camera_info"  # Replace with your actual camera_info topic
@@ -300,7 +233,6 @@ class LiDAR2MapProjection:
                 projected_map_lidar[grid_x_lidar, grid_y_lidar] += z  # -0.25: z of baselink2lidar TF
                 map_cnt_lidar[grid_x_lidar, grid_y_lidar] = map_cnt_lidar[grid_x_lidar, grid_y_lidar]+1
                 # Transform the point from the LiDAR frame to the camera frame
-                # lidar_point = np.array([x, y, (z -(- self.Tv2b.transform.translation.z + 0.25)), 1.0])  # Homogeneous coordinates
                 lidar_point = np.array([x, y, z_orig , 1.0])
                 camera_point = np.dot(lidar_point,self.Tv2c)
                 x_camera = camera_point[0] / camera_point[3]
@@ -308,16 +240,9 @@ class LiDAR2MapProjection:
                 z_camera = camera_point[2] / camera_point[3]
 
                 # Project the transformed 3D point back to the camera image
-                # u = self.fx * ((-y_camera )/ x_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
-                # v = self.fy * (-z_camera / x_camera) + self.cy
                 u = self.fx * ((x_camera )/ z_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
                 v = self.fy * (y_camera / z_camera) + self.cy
 
-                # print("x,y,z: ",x,y,z_orig)
-                # print("c x,y,z: ",x_camera,y_camera,z_camera)
-                # print("u, v: ", u,v)
-
-                    
                 # Check if the projected point is within the camera image boundaries
                 if 0 <= u < self.camera_info_msg.width and 0 <= v < self.camera_info_msg.height:
                     # print("u, v: ", u,v)
@@ -328,19 +253,13 @@ class LiDAR2MapProjection:
                         projected_map_camera[grid_x_lidar, grid_y_lidar, 2] += b  # Blue channel
                         map_cnt_camera[grid_x_lidar, grid_y_lidar] = map_cnt_camera[grid_x_lidar, grid_y_lidar]+1
                         # print(r, g, b)
-         # Divide the values in projected_map_lidar by the count in map_cnt_lidar
-        # print("map_cnt_lidar: ",map_cnt_lidar)
+        # Divide the values in projected_map_lidar by the count in map_cnt_lidar
         map_cnt_lidar[map_cnt_lidar == 0] = 1.0  # Avoid division by zero
-        # print("b projected_map_lidar: ",projected_map_lidar)
         projected_map_lidar = projected_map_lidar / map_cnt_lidar
-        # print("a projected_map_lidar: ",projected_map_lidar)
 
         # Divide the values in projected_map_camera by the count in map_cnt_camera
-        # print("map_cnt_camera: ",map_cnt_camera)
         map_cnt_camera[map_cnt_camera == 0] = 1.0  # Avoid division by zero
-        # print("b projected_map_camera: ",projected_map_camera)
         projected_map_camera = projected_map_camera / map_cnt_camera[:, :, np.newaxis]
-        # print("a projected_map_camera: ",projected_map_camera)
 
         # Update the map using the UpdateMap method of the LocalMap object
         self.local_map.UpdateLiDARMap(projected_map_lidar)
@@ -391,118 +310,22 @@ class LiDAR2MapProjection:
 
         return combined_matrix
 
-    
-class RobotPose:    
-    def __init__(self):
-        self.robot_pose = (0, 0)
-        self.robot_yaw = 0.0
-
-    def update_pose(self, odom_msg):
-        # Get the position from the Odometry message
-        self.robot_pose = (odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y)
-
-        # Get the orientation (quaternion) from the Odometry message
-        quaternion = (
-            odom_msg.pose.pose.orientation.x,
-            odom_msg.pose.pose.orientation.y,
-            odom_msg.pose.pose.orientation.z,
-            odom_msg.pose.pose.orientation.w
-        )
-        # Convert quaternion to RPY (roll, pitch, yaw) angles
-        _, _, self.robot_yaw = tf.transformations.euler_from_quaternion(quaternion)
-
-    def GetPose(self):
-        return self.robot_pose[0], self.robot_pose[1], self.robot_yaw
-
-class Plotter:
-    def __init__(self, local_map, robot_pose_handler):
-        self.local_map = local_map
-        self.robot_pose_handler = robot_pose_handler
-        self.max_x = 0
-        self.min_x = 0
-        self.max_y = 0
-        self.min_y = 0
-        local_map_shape=local_map.GetMapShape()
-        self.local_map_width, self.local_map_height = local_map_shape[0], local_map_shape[1]
-
-        # Create the map plot
-        self.fig, self.ax = plt.subplots()
-        self.ax.set_xlim(0, 1)
-        self.ax.set_ylim(0, 1)
-        self.ax.set_xlabel('X')
-        self.ax.set_ylabel('Y')
-        self.ax.set_title('Map Plot')
-        self.pose_arrow = self.ax.arrow(0, 0, 0, 0, head_width=0.1, head_length=0.15, fc='red', ec='red')
-
-    def update_pose(self):
-        # Update the robot pose arrow
-        arrow_length = 0.5
-        x, y, yaw = self.robot_pose_handler.GetPose()
-        arrow_dx = arrow_length * np.cos(yaw)
-        arrow_dy = arrow_length * np.sin(yaw)
-
-        # Remove the previous arrow
-        if hasattr(self, 'pose_arrow'):
-            self.pose_arrow.remove()
-
-        # Draw the new arrow
-        self.pose_arrow = self.ax.arrow(x, y, arrow_dx, arrow_dy, head_width=0.2, head_length=0.15, fc='red', ec='red')
-
-        # Update the plot limits based on the robot pose
-        self.max_x = max(self.max_x, x + arrow_dx)
-        self.min_x = min(self.min_x, x + arrow_dx)
-        self.max_y = max(self.max_y, y + arrow_dy)
-        self.min_y = min(self.min_y, y + arrow_dy)
-        self.ax.set_xlim(self.min_x - 3, self.max_x + 3)
-        self.ax.set_ylim(self.min_y - 3, self.max_y + 3)
-
-        self.fig.canvas.draw_idle()
-
-    def update_map(self, x, y, yaw):
-        local_map.PlotLiDAROnOtherFigure(self.ax, position=[x, y], angle=yaw-3.141592/2.0)
-        self.fig.canvas.draw_idle()
-
-    def update(self, frame):
-        x, y, yaw = self.robot_pose_handler.GetPose()
-        self.update_pose()
-        self.update_map( x, y, yaw)
-
-    def show(self):
-        # Show the final plot with the updated map and pose
-        plt.show()
-
-
 
 if __name__ == '__main__':
     rospy.init_node('lidar_map_projection_node')
     plt.switch_backend('Qt5Agg')
-    # Set the map parameters
-    robot_pose_handler = RobotPose()
-    width, height = 10,10
+    robot_pose_handler = RobotPose() 
+    width, height = 10,10 
     grid_map = GridMapp(width, height,robot_pose_handler)
     cell_size = 0.5
-    # Create an instance of the LocalMap class
-    print(cell_size)
-    local_map = LocalMap(width, height, cell_size)
+    local_map = LocalMap(width, height, cell_size) 
+    lidar_projection = LiDAR2MapProjection(local_map) 
     
-    # Create an instance of the LiDAR2MapProjection class and pass the LocalMap object
-    lidar_projection = LiDAR2MapProjection(local_map)
-    # Create an instance of the RobotPose class to handle robot's pose
-
-    # Create an instance of the Plotter class and pass the LocalMap and RobotPose objects
-    plotter = Plotter(local_map, robot_pose_handler)
-
-    # Subscribe to the /velodyne_points topic with the PointCloud2 message
-    rospy.Subscriber('/velodyne_points', PointCloud2, lidar_projection.Projection)
-    # Subscribe to the /ground_truth/state topic with the Odometry message
+    rospy.Subscriber('/velodyne_points', PointCloud2, lidar_projection.Projection) 
     rospy.Subscriber('/ground_truth/state', Odometry, robot_pose_handler.update_pose)
     rospy.Subscriber('/left_camera/image_raw',Image, lidar_projection.UpdateImage)
     rospy.Subscriber('/traversability_estimation/traversability_map',GridMap, grid_map.UpdateGridMap)
 
-    # anim = FuncAnimation(plotter.fig, plotter.update, interval=50, blit=False)
-
-    # Show the animation
-    # plotter.show()
     local_map.show()
     grid_map.show()
 
