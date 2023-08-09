@@ -9,13 +9,18 @@ import rospy
 from sensor_msgs.msg import CameraInfo
 import tf
 from cv_bridge import CvBridge
+import torch
+import time
+import os
 
 
 class LocalMap:
-    def __init__(self, width, height, cell_size):
+    def __init__(self, width, height, cell_size,data_dict):
         self.map_size = np.array([width, height, cell_size])
         self.map = np.zeros((int(width/cell_size), int(height/cell_size)))
+        self.map_mask = np.zeros_like(self.map)
         self.fig, self.ax = plt.subplots()
+        self.data_dict = data_dict
 
     def GetMapSize(self):
         return self.map_size
@@ -48,13 +53,15 @@ class LocalMap:
         plt.show()
 
 class LidarMap(LocalMap):
-    def __init__(self, width, height, cell_size,camera_map):
-        super().__init__(width, height, cell_size)
+    def __init__(self, width, height, cell_size,camera_map,data_dict):
+        super().__init__(width, height, cell_size,data_dict)
         self.im = self.ax.imshow(self.map, cmap='viridis', interpolation='none', aspect='auto')
         self.cbar = self.fig.colorbar(self.im)
         self.ax.set_title('Local LiDAR Map')
+
         self.projected_map = np.zeros_like(self.map)
         self.map_cnt = np.zeros_like(self.map)
+        
         self.camera_map = camera_map
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -81,7 +88,7 @@ class LidarMap(LocalMap):
                 lidar_point = np.array([x, y, z_orig , 1.0])
                 self.camera_map.BEV_Projection(lidar_point)
         
-
+        self.map_mask = (self.map_cnt != 0)
         self.map_cnt[self.map_cnt == 0] = 1.0  # Avoid division by zero
         self.projected_map = self.projected_map / self.map_cnt
         self.UpdateMap(self.projected_map)
@@ -90,6 +97,7 @@ class LidarMap(LocalMap):
         self.projected_map = np.zeros_like(self.map)
         self.map_cnt = np.zeros_like(self.map)
 
+        self.camera_map.map_mask = (self.camera_map.map_cnt != 0)
         self.camera_map.map_cnt[self.camera_map.map_cnt == 0] = 1.0  # Avoid division by zero
         self.camera_map.projected_map = self.camera_map.projected_map / self.camera_map.map_cnt
         self.camera_map.UpdateMap(self.camera_map.projected_map)
@@ -98,16 +106,23 @@ class LidarMap(LocalMap):
         self.camera_map.projected_map = np.zeros_like(self.camera_map.map)
         self.camera_map.map_cnt = np.zeros_like(self.camera_map.map)
 
+        self.data_dict['lidar_map'] = torch.tensor(self.map, dtype=torch.float32)
+        self.data_dict['camera_map'] = torch.tensor(self.camera_map.map, dtype=torch.float32)
+        self.data_dict['lidar_map_mask'] = torch.tensor(self.map_mask, dtype=torch.float32)
+        self.data_dict['camera_map_mask'] = torch.tensor(self.camera_map.map_mask[:,:,1], dtype=torch.float32)
+
+
         self.camera_map.update_image_flag = True
 
 
 class CameraMap(LocalMap):
-    def __init__(self, width, height, cell_size):
-        super().__init__(width, height, cell_size)
+    def __init__(self, width, height, cell_size,data_dict):
+        super().__init__(width, height, cell_size,data_dict)
         self.im = self.ax.imshow(self.map,cmap='viridis')
         self.ax.set_title('Local Camera Map')
     
         self.map = np.zeros((int(width/cell_size), int(height/cell_size),3))
+        self.map_mask = np.zeros((int(width/cell_size), int(height/cell_size)))
         self.projected_map = np.zeros_like(self.map)
         self.map_cnt = np.zeros_like(self.map)
 
@@ -188,11 +203,18 @@ class CameraMap(LocalMap):
     
 
 class TraversabilityMap(LocalMap):
-    def __init__(self, width, height, cell_size):
-        super().__init__(width, height, cell_size)
+    def __init__(self, width, height, cell_size,data_dict):
+        super().__init__(width, height, cell_size,data_dict)
         self.im = self.ax.imshow(self.map, cmap='viridis', interpolation='none', aspect='auto')
         self.cbar = self.fig.colorbar(self.im)
         self.ax.set_title('Traversability Map')
+
+        current_time = time.strftime("%Y%m%d_%H%M%S")
+        # Create a folder with the current time as the name
+        self.folder_name = '../input/data/'+current_time
+        os.makedirs(self.folder_name, exist_ok=True)
+
+        self.update_cnt = 0
 
     def CalculateMap(self,msg):
         info = msg.info
@@ -212,8 +234,23 @@ class TraversabilityMap(LocalMap):
         grid_map_crop = utils.zoom_grid(grid_map,width/length_x ,height/length_y)
 
         if grid_map_crop.shape == (20,20):
+            self.map_mask = ~np.isnan(grid_map_crop)
             self.UpdateMap(grid_map_crop)
             self.UpdateFigure()
+            
+            current_time = time.strftime("%Y%m%d_%H%M%S")
+            file_path = os.path.join(self.folder_name, f'{current_time}.pt')
+
+            self.data_dict['traversability_map'] = torch.tensor(self.map, dtype=torch.float32)
+            self.data_dict['traversability_map_mask'] = torch.tensor(self.map_mask, dtype=torch.float32)
+            
+            if self.update_cnt > 5:
+                torch.save(self.data_dict, file_path)
+                print("dataset saved! :",file_path)
+
+            self.update_cnt = self.update_cnt +1
+
+
         else:
             print("traversability map shape error: ", grid_map_crop.shape)
         

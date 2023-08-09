@@ -12,6 +12,7 @@ from Map import LidarMap, CameraMap, TraversabilityMap
 
 matplotlib.use('Qt5Agg')  # Set the backend to Qt5Agg
 
+
 if __name__ == '__main__':
     rospy.init_node('lidar_map_projection_node')
     plt.switch_backend('Qt5Agg')
@@ -19,9 +20,9 @@ if __name__ == '__main__':
 
     data_dict = {}
     robot_pose = RobotPose() 
-    camera_map = CameraMap(width, height, cell_size)
-    lidar_map = LidarMap(width, height, cell_size, camera_map)
-    traversability_map = TraversabilityMap(width, height, cell_size)
+    camera_map = CameraMap(width, height, cell_size,data_dict)
+    lidar_map = LidarMap(width, height, cell_size, camera_map,data_dict)
+    traversability_map = TraversabilityMap(width, height, cell_size,data_dict)
 
     robot_x, robot_y, robot_yaw = robot_pose.GetPose()
     
@@ -30,9 +31,5 @@ if __name__ == '__main__':
     rospy.Subscriber('/left_camera/image_raw', Image, camera_map.UpdateImage)
     rospy.Subscriber('/traversability_estimation/traversability_map', GridMap, traversability_map.CalculateMap)
     
-
-    # lidar_map.show()
-    # camera_map.show()
-    traversability_map.show( )
 
     rospy.spin()  # This line won't be reached because rospy.spin() blocks the code execution
