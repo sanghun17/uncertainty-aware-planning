@@ -76,6 +76,7 @@ class LidarMap(LocalMap):
         self.camera_map.update_image_flag = False # Stop update image while Lidar callback!
         _, _, cell_size = self.map_size
         for point in pc2.read_points(msg, skip_nans=True):
+            # start_time = rospy.Time.now()
             x, y, z_orig = point[:3]
             z = z_orig - self.Tv2b.transform.translation.z + 0.25 # -.25: chasis height
             # Project LIDAR points onto the local map without transformation
@@ -83,10 +84,12 @@ class LidarMap(LocalMap):
             grid_y_lidar = -int(y / cell_size) + self.map.shape[1] // 2
             
             if 0 <= grid_x_lidar < self.map.shape[0] and 0 <= grid_y_lidar < self.map.shape[1]:
+                
                 self.projected_map[grid_x_lidar, grid_y_lidar] += z  # -0.25: z of baselink2lidar TF
                 self.map_cnt[grid_x_lidar, grid_y_lidar] = self.map_cnt[grid_x_lidar, grid_y_lidar]+1
                 lidar_point = np.array([x, y, z_orig , 1.0])
                 self.camera_map.BEV_Projection(lidar_point)
+        
         
         self.map_mask = (self.map_cnt != 0)
         self.map_cnt[self.map_cnt == 0] = 1.0  # Avoid division by zero
@@ -111,8 +114,9 @@ class LidarMap(LocalMap):
         self.data_dict['lidar_map_mask'] = torch.tensor(self.map_mask, dtype=torch.float32)
         self.data_dict['camera_map_mask'] = torch.tensor(self.camera_map.map_mask[:,:,1], dtype=torch.float32)
 
-
         self.camera_map.update_image_flag = True
+
+        
 
 
 class CameraMap(LocalMap):

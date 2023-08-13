@@ -206,7 +206,8 @@ void LowlevelCtrl::ControlLoop()
         }        
         else{
           compensated_pitch = cur_rpy[1];
-        }        
+        }
+
         pitch_term = grav_accl*sin(compensated_pitch);                        
         pitch_term = pitch_term_filter.filter(pitch_term);   
         
@@ -218,10 +219,10 @@ void LowlevelCtrl::ControlLoop()
         double local_speed = sqrt(pow(cur_odom.twist.twist.linear.x,2)+pow(cur_odom.twist.twist.linear.y,2)+pow(cur_odom.twist.twist.linear.z,2));
         std_msgs::Float64 speed_msg;
         speed_msg.data = local_speed;
-        vel_x_pub.publish(speed_msg);              
+        vel_x_pub.publish(speed_msg);
         throttle_cmd = (vehicle_cmd.acceleration + rolling_term+pitch_term)/cmd_scale - cmd_offset/cmd_scale;                                 
         if(local_speed < 0.1 && vehicle_cmd.acceleration <=0){            
-          throttle_cmd = 0.0;              
+          throttle_cmd = 0.0;
         }          
         if ( throttle_cmd < 0.0){
           brake_cmd = -throttle_cmd;

@@ -4,6 +4,8 @@ import tf
 class RobotPose:    
     def __init__(self):
         self.robot_pose = (0, 0)
+        self.robot_roll = 0.0
+        self.robot_pitch = 0.0
         self.robot_yaw = 0.0
 
     def update_pose(self, odom_msg):
@@ -18,7 +20,8 @@ class RobotPose:
             odom_msg.pose.pose.orientation.w
         )
         # Convert quaternion to RPY (roll, pitch, yaw) angles
-        _, _, self.robot_yaw = tf.transformations.euler_from_quaternion(quaternion)
+        self.robot_roll, self.robot_pitch, self.robot_yaw = tf.transformations.euler_from_quaternion(quaternion)
+        print("robot attitude: ",self.robot_roll, self.robot_pitch, self.robot_yaw)
 
     def GetPose(self):
         # print("GetPose: ",self.robot_yaw)
