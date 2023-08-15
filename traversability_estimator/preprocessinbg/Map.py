@@ -10,8 +10,7 @@ from sensor_msgs.msg import CameraInfo
 import tf
 from cv_bridge import CvBridge
 import torch
-import time
-import os
+from queue import Queue
 
 
 class LocalMap:
@@ -167,7 +166,6 @@ class CameraMap(LocalMap):
         # Project the transformed 3D point back to the camera image
         u = self.fx * ((x_camera )/ z_camera) + self.cx  # optical axis is different with camera axis!!! need to transform !!
         v = self.fy * (y_camera / z_camera) + self.cy
-        
         # Check if the projected point is within the camera image boundaries
         if 0 <= u < self.camera_info_msg.width and 0 <= v < self.camera_info_msg.height:
             x,y,_,_ = lidar_point
@@ -213,11 +211,6 @@ class TraversabilityMap(LocalMap):
         self.cbar = self.fig.colorbar(self.im)
         self.ax.set_title('Traversability Map')
 
-        current_time = time.strftime("%Y%m%d_%H%M%S")
-        # Create a folder with the current time as the name
-        self.folder_name = '../input/data/'+current_time
-        os.makedirs(self.folder_name, exist_ok=True)
-
         self.update_cnt = 0
 
     def CalculateMap(self,msg):
@@ -237,20 +230,15 @@ class TraversabilityMap(LocalMap):
         width, height, _ = self.map_size
         grid_map_crop = utils.zoom_grid(grid_map,width/length_x ,height/length_y)
 
-        if grid_map_crop.shape == (20,20):
+        # if grid_map_crop.shape == (20,20):
+        if True:     
             self.map_mask = ~np.isnan(grid_map_crop)
             self.UpdateMap(grid_map_crop)
             self.UpdateFigure()
-            
-            current_time = time.strftime("%Y%m%d_%H%M%S")
-            file_path = os.path.join(self.folder_name, f'{current_time}.pt')
 
             self.data_dict['traversability_map'] = torch.tensor(self.map, dtype=torch.float32)
             self.data_dict['traversability_map_mask'] = torch.tensor(self.map_mask, dtype=torch.float32)
             
-            if self.update_cnt > 5:
-                torch.save(self.data_dict, file_path)
-                print("dataset saved! :",file_path)
 
             self.update_cnt = self.update_cnt +1
 

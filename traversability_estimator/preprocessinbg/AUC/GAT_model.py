@@ -24,6 +24,7 @@ class GridAttentionModel(nn.Module):
         super(GridAttentionModel, self).__init__()
         self.input_grid_width = args['input_grid_width']
         self.input_grid_height = args['input_grid_height']
+        self.input_grid_channel = args['input_grid_channel']
         self.input_state_dim = args['input_state_dim']
         self.input_action_dim = args['input_action_dim']
         self.n_time_step = args['n_time_step']
@@ -33,26 +34,30 @@ class GridAttentionModel(nn.Module):
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        self.init_input_size = self.input_grid_width*self.input_grid_height + self.input_state_dim + self.input_action_dim        
+        # self.init_input_size = self.input_grid_width*self.input_grid_height*self.input_grid_channel + self.input_state_dim + self.input_action_dim        
         
         
         # Convolutional layer        
-        conv_kernel_size = 3
-        conv_stride = 1
+        conv_kernel_size = 10
+        conv_stride = 10
         self.init_conv_layer = nn.Sequential(
-            nn.Conv2d(1, 1, kernel_size=conv_kernel_size, stride=conv_stride),
+            nn.Conv2d(self.input_grid_channel, 1, kernel_size=conv_kernel_size, stride=conv_stride),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2)  # Optional pooling layer
         )
         
         # Calculate the number of features after convolution
-        self.conv_out_size = self._get_conv_out_size(self.input_grid_width, self.input_grid_height,1 , 1, conv_kernel_size, conv_stride)
+        self.conv_out_size = self._get_conv_out_size(self.input_grid_width, self.input_grid_height, self.input_grid_channel , 1, conv_kernel_size, conv_stride)
         
+
+        self.init_input_size =  self.conv_out_size + self.input_state_dim + self.input_action_dim      
+
         self.init_conv_layer_fc = nn.Sequential(              
-                    nn.Linear(self.conv_out_size, self.init_input_size-self.input_state_dim - self.input_action_dim ),
+                    # nn.Linear(self.conv_out_size, self.init_input_size-self.input_state_dim - self.input_action_dim ),
+                    nn.Linear(self.conv_out_size,  self.conv_out_size  ),
                     nn.ReLU()
         )
-                
+        
         self.intput_to_lstm_fc = nn.Sequential(              
                 nn.Linear(self.init_input_size, self.init_fc_hidden_size),  
                 nn.BatchNorm1d(self.init_fc_hidden_size),
@@ -93,16 +98,17 @@ class GridAttentionModel(nn.Module):
         batch_size = state.shape[0]
         
         # Concatenate state and action predictions along the sequence dimension
-        init_lstm_input = torch.cat((state, action_predictions[:,0,:]), dim=1).to(self.device).to(torch.float) 
+        # init_lstm_input = torch.cat((state, action_predictions[:,0,:]), dim=1).to(self.device).to(torch.float) 
+        init_lstm_input = torch.cat((state[:,0,:], action_predictions[:,0,:]), dim=1).to(self.device).to(torch.float) 
         # flattened_batch_image_data = image.view(state.shape[0], -1)
-        tmp = self.init_conv_layer(image.unsqueeze(dim=1))
+        image = image.permute(0,3,1,2) # image size: batch, channel, width, height
+        tmp = self.init_conv_layer(image)
+
         tmp = tmp.view(state.shape[0], -1)
         flattened_batch_image_data = self.init_conv_layer_fc(tmp)
         init_x = torch.cat([init_lstm_input,flattened_batch_image_data], dim=1).to(self.device).to(torch.float)
         
         lstm_x = self.intput_to_lstm_fc(init_x)
-        
-        
         
         init_lstm_output, (h, c) = self.lstm(lstm_x.unsqueeze(dim=1))
         
@@ -113,26 +119,39 @@ class GridAttentionModel(nn.Module):
         # add additional dimension to make 1 channel data
         fc_output =fc_output.unsqueeze(dim=1)
         ## apply attention 
-        attentioned_fc_output = self.grid_attention(fc_output)*image.unsqueeze(dim=1)
+        # attentioned_fc_output = self.grid_attention(fc_output)*image.unsqueeze(dim=1)
+        attentioned_fc_output = self.grid_attention(fc_output)
+        # print("1",fc_output.size())
+        # print("2",self.grid_attention(fc_output).size())
+        # print("3",image.size())
+        # print("4",attentioned_fc_output.size())
+        # attentioned_fc_output=attentioned_fc_output.squeeze(dim=1)
+        # print("5",attentioned_fc_output.size())
+        # print("6",action_predictions.shape[1])
 
-        outputs.append(attentioned_fc_output.squeeze().clone())
+        outputs.append(attentioned_fc_output)
         
         for t in range(1,action_predictions.shape[1]):
             next_input_to_lstm = torch.cat((init_lstm_output,action_predictions[:, t:t+1]),dim=2).to(self.device).to(torch.float)            
             next_input_to_lstm, (h, c) = self.lstm(next_input_to_lstm,(h,c))
             
-            
             init_flatten_hidden = self.lstm_hidden_fc(h[0,:,:])
             # Reshape for convolutional layer (batch_size, channels, height, width)
             fc_output = init_flatten_hidden.view(-1, self.input_grid_width, self.input_grid_height)
+            # print("7",fc_output.size())
             # add additional dimension to make 1 channel data
             fc_output =fc_output.unsqueeze(dim=1)
+            # print("8",fc_output.size())
             ## apply attention 
-            attentioned_fc_output = self.grid_attention(fc_output)*image.unsqueeze(dim=1)
-            outputs.append(attentioned_fc_output.squeeze().clone())
+            # attentioned_fc_output = self.grid_attention(fc_output)*image.unsqueeze(dim=1)
+            # print("9",attentioned_fc_output.size())
+            # outputs.append(attentioned_fc_output.squeeze().clone())
+            attentioned_fc_output = self.grid_attention(fc_output)
+            # print("9",attentioned_fc_output.size())
+            outputs.append(attentioned_fc_output)
         
-
-        outputs = torch.stack(outputs,dim = 3)
+        outputs = torch.stack(outputs,dim = 1)
+        # print("10",outputs.size())
 
         return outputs
 

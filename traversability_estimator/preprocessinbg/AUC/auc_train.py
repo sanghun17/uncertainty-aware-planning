@@ -4,34 +4,45 @@ import torch
 import torch.nn as nn
 from fake_data_gen import gen_img_set
 from gat_utils import GATDataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from GAT_model import GridAttentionModel
 from tensorboardX import SummaryWriter 
 from torch.optim import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 from train_utils import animate_result
+import os
+import cv2
 
 writer = SummaryWriter()
 
-args = {'input_grid_width':64,
-        'input_grid_height':64,
+args = {'input_grid_width':512,
+        'input_grid_height':640,
+        'input_grid_channel':3,
         'n_time_step':10, 
         'lstm_hidden_size': 12,  
         'init_fc_hidden_size':64,
         'input_state_dim':5, # [vx, vy, wz, roll, pitch] 
         'input_action_dim':2, # [vx, delta] 
-        'data_size':10000,
-        'batch_size':150,
-        'num_epochs': 200
+        'batch_size':5,
+        'num_epochs': 20
         }
 
 ## Generate train and test dataloader
-state_input, action_input, image_input, image_output = gen_img_set(batch = args['data_size'], grid_width= args['input_grid_width'], grid_height=args['input_grid_height'], num_time_steps=args['n_time_step'], show_sample_data = False)
-test_state_input, test_action_input, test_image_input, test_image_output = gen_img_set(batch = args['data_size'], grid_width= args['input_grid_width'], grid_height=args['input_grid_height'], num_time_steps=args['n_time_step'], show_sample_data = False)
-gat_train_dataset = GATDataset(state_input, action_input, image_input, image_output)
-gat_test_dataset = GATDataset(test_state_input, test_action_input, test_image_input, test_image_output)
-train_dataloader = DataLoader(gat_train_dataset, batch_size=args['batch_size'], shuffle=True)
-test_dataloader = DataLoader(gat_test_dataset, batch_size=args['batch_size'], shuffle=False)
+# state_input, action_input, image_input, image_output = gen_img_set(batch = args['data_size'], grid_width= args['input_grid_width'], grid_height=args['input_grid_height'], num_time_steps=args['n_time_step'], show_sample_data = False)
+# test_state_input, test_action_input, test_image_input, test_image_output = gen_img_set(batch = args['data_size'], grid_width= args['input_grid_width'], grid_height=args['input_grid_height'], num_time_steps=args['n_time_step'], show_sample_data = False)
+# gat_train_dataset = GATDataset(state_input, action_input, image_input, image_output)
+# gat_test_dataset = GATDataset(test_state_input, test_action_input, test_image_input, test_image_output)
+current_dir = os.path.dirname(os.path.realpath(__file__))
+data_folder = '../../input/data'
+os.makedirs('../outputs', exist_ok=True)
+absolute_data_folder = os.path.join(current_dir, data_folder)
+gat_dataset = GATDataset(data_folder=absolute_data_folder)
+dataset_size=len(gat_dataset)
+train_data_size = int(0.8*dataset_size)
+val_data_size = dataset_size-train_data_size
+train_data, val_data = random_split(gat_dataset, [train_data_size, val_data_size] )
+train_dataloader = DataLoader(train_data, batch_size = args['batch_size'], shuffle=True, drop_last=True)
+test_dataloader = DataLoader(val_data, batch_size = args['batch_size'], shuffle=False, drop_last=True)
 
 # Initialize model and move to GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -59,7 +70,8 @@ for epoch in range(args['num_epochs']):
 
         # Forward pass
         outputs = model(state, action,image_in)
-
+        #print(outputs.size())
+        #print(image_out.size())
         # Compute loss
         loss = criterion(outputs, image_out)
         total_loss += loss.item()
@@ -108,9 +120,16 @@ for epoch in range(args['num_epochs']):
         # Log test loss to TensorBoard
         writer.add_scalar('Loss/Test', avg_test_loss, epoch + 1)
         
-      
-          
-        animate_result(image_out[0,:,:,:],outputs[0,:,:,:])
+        print(image_out.size())
+        log_image = torch.cat((torch.cat((image_out[0,3,:,:,:], outputs[0,3,:,:,:]), 1),
+                                torch.cat((image_out[0,6,:,:,:], outputs[0,6,:,:,:]), 1),
+                                torch.cat((image_out[0,9,:,:,:], outputs[0,9,:,:,:]), 1)),
+                      2)
+        print(image_out[0,9,:,:,:].size())
+        writer.add_image("valdiate image", log_image, epoch +1)
+        # animate_result(image_out_resized, outputs_resized)
+        # animate_result(image_out_resized,outputs_resized) # batch, predict step, channel, width, height
+        # animate_result(image_out[0,:,:,:],outputs[0,:,:,:])
 
         
         

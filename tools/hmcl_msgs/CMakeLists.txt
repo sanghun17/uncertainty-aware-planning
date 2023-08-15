@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   sensor_msgs
   std_msgs
+  nav_msgs
 )
 
 add_message_files(
@@ -25,6 +26,8 @@ add_message_files(
     VehicleWheelSpeed.msg
     CtrlVehicleStates.msg    
     vehicleCmd.msg
+    OdometryList.msg
+    ActionList.msg
 )
 
 # add_service_files(
@@ -36,6 +39,7 @@ generate_messages(
     geometry_msgs    
     sensor_msgs
     std_msgs
+    nav_msgs
 )
 
 catkin_package(
@@ -44,4 +48,5 @@ catkin_package(
     message_runtime
     sensor_msgs
     std_msgs
+    nav_msgs
 )

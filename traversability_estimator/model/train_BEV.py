@@ -6,7 +6,7 @@ import matplotlib
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
-import model
+import model_BEV
 import os
 from torch.utils.data import Dataset, DataLoader, random_split
 
@@ -73,7 +73,7 @@ class CustomDataset(Dataset):
         stacked_map = torch.cat([lidar_map, camera_map, traversability_map, lidar_map_mask, camera_map_mask,traversability_map_mask], dim=2) # 20*20*10
         # Rearrange the dimensions of stacked_map
         stacked_map = stacked_map.permute(2, 0, 1)  # Change the order of dimensions (10,20,20)
-        return stacked_map
+        return stacked_map  
 
 # construct the argument parser and parser the arguments
 parser = argparse.ArgumentParser()
@@ -110,7 +110,7 @@ train_loader = DataLoader(train_data, batch_size = batch_size, shuffle=True, dro
 val_loader = DataLoader(val_data, batch_size = batch_size, shuffle=True, drop_last=True)
 
 
-model = model.LinearVAE().to(device)
+model = model_BEV.LinearVAE().to(device)
 optimizer = optim.Adam(model.parameters(), lr=lr)
 criterion = nn.BCELoss(reduction='none')
 

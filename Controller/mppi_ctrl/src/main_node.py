@@ -44,14 +44,34 @@ from hmcl_msgs.msg import vehicleCmd, Waypoints
 from visualization_msgs.msg import MarkerArray
 from autorally_msgs.msg import chassisState
 from grid_map_msgs.msg import GridMap
+from std_msgs.msg import Float32MultiArray
+from hmcl_msgs.msg import OdometryList
+from hmcl_msgs.msg import ActionList
 import torch 
 from mppi_ctrl.vehicle_model import VehicleModel
 from mppi_ctrl.utils import torch_path_to_marker, quaternion_to_euler, get_odom_euler, get_local_vel,  wrap_to_pi
 from mppi_ctrl.gpgridmap import GPGridMap
 import rospkg
+from queue import Queue
 rospack = rospkg.RosPack()
 pkg_dir = rospack.get_path('mppi_ctrl')
 
+class FixedSizeQueue:
+    def __init__(self, size, init_value=None):
+        self.size = size
+        self.queue = Queue(maxsize=size)
+        
+        # Fill the queue with initial values
+        for _ in range(size):
+            self.queue.put(init_value)
+    
+    def push(self, item):
+        if self.queue.full():
+            self.queue.get()  # Remove the oldest item if the queue is full
+        self.queue.put(item)
+    
+    def get(self):
+        return list(self.queue.queue)
 
 class MPPIWarpper:
     def __init__(self):       
@@ -72,6 +92,8 @@ class MPPIWarpper:
         self.VehicleModel = VehicleModel(device_ = self.torch_device, dt = self.dt,N_node = self.n_nodes,  map_info = self.local_map, mppi_n_sample = self.mppi_n_sample)        
         self.local_map.vehicle_model = self.VehicleModel
         self.goal_pose = None
+        self.queue_action = FixedSizeQueue(size=10, init_value=[torch.nan,torch.nan])
+        self.queue_state = FixedSizeQueue(size=10, init_value=[torch.nan,torch.nan])
 
         self.odom_available   = False 
         self.vehicle_status_available = False 
@@ -99,6 +121,8 @@ class MPPIWarpper:
         self.status_pub = rospy.Publisher(status_topic, Bool, queue_size=2)            
         self.control_pub = rospy.Publisher(control_topic, vehicleCmd, queue_size=1, tcp_nodelay=True)        
         self.ref_traj_marker_pub = rospy.Publisher(traj_marker, MarkerArray, queue_size=2)        
+        self.state_pub = rospy.Publisher("/state_sh",OdometryList,queue_size=2)
+        self.action_pub = rospy.Publisher("/action_sh",ActionList,queue_size=2)
         # Subscribers
         self.local_traj_sub = rospy.Subscriber(traj_topic, Waypoints, self.traj_callback)
         self.goal_sub = rospy.Subscriber(goal_topic, PoseStamped, self.goal_callback)
@@ -109,7 +133,7 @@ class MPPIWarpper:
 
         # controller callback         
         self.cmd_timer = rospy.Timer(rospy.Duration(1/self.prediction_hz), self.cmd_callback)         
-        rate = rospy.Rate(1)     
+        rate = rospy.Rate(10)     
         while not rospy.is_shutdown():            
             msg = Bool()
             msg.data = True
@@ -158,7 +182,6 @@ class MPPIWarpper:
         if self.odom_available is False:
             self.odom_available = True 
         self.odom = msg        
-
         
     def cmd_callback(self,timer):
         
@@ -209,7 +232,7 @@ class MPPIWarpper:
         local_vel[0] = np.max([local_vel[0],0.25])
 
         # x, y, psi, vx, vy, wz, z, roll, pitch 
-        # 0  1  2     3  4   5   6 7,    8    \
+        # 0  1  2     3  4   5   6    7,    8    \
         self.cur_x = np.transpose(np.array([self.odom.pose.pose.position.x,
                                             self.odom.pose.pose.position.y,
                                             current_euler[2],
@@ -231,6 +254,8 @@ class MPPIWarpper:
         acclx = opt_action[1]
 
         ctrl_cmd = vehicleCmd()
+        
+
         ctrl_cmd.header.stamp = rospy.Time.now()
         ctrl_cmd.acceleration = acclx
         if self.prev_vehicleCmd is not None:
@@ -240,13 +265,57 @@ class MPPIWarpper:
             target_steering = (self.steering + diff_steering)
         else:
             target_steering = delta
-        ctrl_cmd.steering = -1*target_steering  
+        ctrl_cmd.steering = -1*target_steering
+
+        # if self.goal_pose is not None:
+        #     if self.goal_pose[0] is not None and self.goal_pose[1] is not None:
+        #         distance_to_goal = math.sqrt(
+        #         (self.cur_x[0] - self.goal_pose[0]) ** 2 +
+        #         (self.cur_x[1] - self.goal_pose[1]) ** 2
+        #         )
+        #         if distance_to_goal < 1.5:
+        #             ctrl_cmd.acceleration = -5.0
+        #             print("Goal reached!")
+
         self.control_pub.publish(ctrl_cmd)
 
+        state_msg = Odometry()
+        state_msg.header.stamp = ctrl_cmd.header.stamp
+        state_msg.pose.pose.position.x = self.cur_x[0] # x
+        state_msg.pose.pose.position.y = self.cur_x[1] # y
+        state_msg.pose.pose.position.z = self.cur_x[6] # z
+        state_msg.pose.pose.orientation.x = self.cur_x[7] # roll
+        state_msg.pose.pose.orientation.y = self.cur_x[8] # pitch
+        state_msg.pose.pose.orientation.z = self.cur_x[2] # yaw
+        state_msg.pose.pose.orientation.w = 0.0 
+        state_msg.twist.twist.linear.x = self.cur_x[3] # vx
+        state_msg.twist.twist.linear.y = self.cur_x[4] # vy
+        state_msg.twist.twist.linear.z = 0.0
+        state_msg.twist.twist.angular.x = 0.0
+        state_msg.twist.twist.angular.y = 0.0
+        state_msg.twist.twist.angular.z = self.cur_x[5] # psi dot
+
+        self.queue_action.push([self.cur_x[4], ctrl_cmd.steering]) # vx, steering
+        action_list = Float32MultiArray()
+        action_list_msg = ActionList()
+        queue_copy_action = list(self.queue_action.get())
+        action_list.data = [item for sublist in queue_copy_action for item in sublist]
+        action_list_msg.action_list = action_list
+        action_list_msg.header.stamp = rospy.Time.now()
+
+        self.action_pub.publish(action_list_msg)
+        
+        self.queue_state.push(state_msg) # vx, steering        
+        state_list_msg = OdometryList()
+        state_list_msg.header.stamp = rospy.Time.now()
+        queue_copy_state = list(self.queue_state.get())
+        state_list_msg.odometry_list = queue_copy_state  # Assign the list of Odometry messages directly
+        self.state_pub.publish(state_list_msg)
+    
         self.prev_vehicleCmd = ctrl_cmd
         
         end = time.time()        
-        print("time: {:.5f}".format( end-start))
+        # print("time: {:.5f}".format( end-start))
 
 ###################################################################################
 
