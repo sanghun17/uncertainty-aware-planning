@@ -18,13 +18,13 @@ writer = SummaryWriter()
 args = {'input_grid_width':512,
         'input_grid_height':640,
         'input_grid_channel':3,
-        'n_time_step':10, 
+        'n_time_step':9, 
         'lstm_hidden_size': 12,  
         'init_fc_hidden_size':64,
         'input_state_dim':5, # [vx, vy, wz, roll, pitch] 
         'input_action_dim':2, # [vx, delta] 
-        'batch_size':5,
-        'num_epochs': 20
+        'batch_size':10,
+        'num_epochs': 50
         }
 
 ## Generate train and test dataloader
@@ -42,7 +42,7 @@ train_data_size = int(0.8*dataset_size)
 val_data_size = dataset_size-train_data_size
 train_data, val_data = random_split(gat_dataset, [train_data_size, val_data_size] )
 train_dataloader = DataLoader(train_data, batch_size = args['batch_size'], shuffle=True, drop_last=True)
-test_dataloader = DataLoader(val_data, batch_size = args['batch_size'], shuffle=False, drop_last=True)
+test_dataloader = DataLoader(val_data, batch_size = args['batch_size'], shuffle=True, drop_last=True)
 
 # Initialize model and move to GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -100,7 +100,7 @@ for epoch in range(args['num_epochs']):
         print(f"Model checkpoint saved at epoch {epoch + 1}")
 
     # Intermediate evaluation every 10 epochs
-    if (epoch + 1) % 10 == 0:
+    if (epoch + 1) % 5 == 0:
         model.eval()
         test_loss = 0.0
         with torch.no_grad():
@@ -120,12 +120,10 @@ for epoch in range(args['num_epochs']):
         # Log test loss to TensorBoard
         writer.add_scalar('Loss/Test', avg_test_loss, epoch + 1)
         
-        print(image_out.size())
         log_image = torch.cat((torch.cat((image_out[0,3,:,:,:], outputs[0,3,:,:,:]), 1),
                                 torch.cat((image_out[0,6,:,:,:], outputs[0,6,:,:,:]), 1),
-                                torch.cat((image_out[0,9,:,:,:], outputs[0,9,:,:,:]), 1)),
+                                torch.cat((image_out[0,-1,:,:,:], outputs[0,-1,:,:,:]), 1)),
                       2)
-        print(image_out[0,9,:,:,:].size())
         writer.add_image("valdiate image", log_image, epoch +1)
         # animate_result(image_out_resized, outputs_resized)
         # animate_result(image_out_resized,outputs_resized) # batch, predict step, channel, width, height

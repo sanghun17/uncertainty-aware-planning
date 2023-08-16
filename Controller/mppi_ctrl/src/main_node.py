@@ -295,7 +295,7 @@ class MPPIWarpper:
         state_msg.twist.twist.angular.y = 0.0
         state_msg.twist.twist.angular.z = self.cur_x[5] # psi dot
 
-        self.queue_action.push([self.cur_x[4], ctrl_cmd.steering]) # vx, steering
+        self.queue_action.push([self.cur_x[3], ctrl_cmd.steering]) # vx, steering
         action_list = Float32MultiArray()
         action_list_msg = ActionList()
         queue_copy_action = list(self.queue_action.get())
@@ -305,7 +305,7 @@ class MPPIWarpper:
 
         self.action_pub.publish(action_list_msg)
         
-        self.queue_state.push(state_msg) # vx, steering        
+        self.queue_state.push(state_msg)         
         state_list_msg = OdometryList()
         state_list_msg.header.stamp = rospy.Time.now()
         queue_copy_state = list(self.queue_state.get())

@@ -131,7 +131,7 @@ class GridAttentionModel(nn.Module):
 
         outputs.append(attentioned_fc_output)
         
-        for t in range(1,action_predictions.shape[1]):
+        for t in range(1,action_predictions.shape[1]-1):
             next_input_to_lstm = torch.cat((init_lstm_output,action_predictions[:, t:t+1]),dim=2).to(self.device).to(torch.float)            
             next_input_to_lstm, (h, c) = self.lstm(next_input_to_lstm,(h,c))
             
