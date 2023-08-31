@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="terrain_sh">
+    <pose>0 0 0 0 0 0</pose>
+    <static>true</static>
+    <link name="body">
+      <visual name="visual">
+        <geometry>
+          <mesh><uri>model://urdf/models/terrain_sh/media/terrain_sh.dae</uri></mesh>
+        </geometry>
+	    <material>
+          <script>
+            <uri>model://urdf/models/terrain_sh/media/scripts</uri>
+            <uri>model://urdf/models/terrain_sh/media/Textures</uri>
+            <name>RepeatedGrass/Diffuse</name>
+          </script>
+          
+        </material>
+      </visual>
+      <collision name="collision">
+        <geometry>
+          <mesh><uri>model://urdf/models/terrain_sh/media/terrain_sh.dae</uri></mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>
+

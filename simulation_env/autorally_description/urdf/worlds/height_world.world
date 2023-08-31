@@ -1,0 +1,126 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <world name="default">
+    <physics name='default_physics' default='0' type='ode'>
+      <max_step_size>0.002</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>500</real_time_update_rate>
+       <dart>
+        <collision_detector>fcl</collision_detector>
+      </dart>
+    </physics>
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <latitude_deg>0</latitude_deg>
+      <longitude_deg>0</longitude_deg>
+      <elevation>0</elevation>
+      <heading_deg>0</heading_deg>
+    </spherical_coordinates>
+    <gui fullscreen='0'>
+      <camera name='user_camera'>
+        <pose frame=''>-24.1375 -51.3551 52.8378 0 0.694743 1.47143</pose>
+        <view_controller>orbit</view_controller>
+        <projection_type>perspective</projection_type>
+      </camera>
+    </gui>
+    <scene>
+      <sky>
+        <clouds>
+          <speed>12</speed>
+        </clouds>
+      </sky>
+      <ambient>1 1 1 1</ambient>
+      <shadows>1</shadows>
+      <background>0.7 0.7 0.7 1</background>
+    </scene>
+    <!-- A global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+     <model name="heightmap">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <heightmap>
+              <uri>model://urdf/models/sin_wave/sin_wave.png</uri>
+              <size>10.0 10.0 2.0</size>
+              <pos>0 0 0</pos>
+              <texture>
+                <size>10</size>
+                <diffuse>__default__</diffuse>
+                <normal>__default__</normal>
+              </texture>
+              <blend>
+                <min_height>0</min_height>
+                <fade_dist>0</fade_dist>
+              </blend>
+            </heightmap>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50</mu>
+                <mu2>30</mu2>
+              </ode>
+              <torsional>
+                <ode/>
+              </torsional>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+          </surface>
+        </collision>
+        <visual name='visual_abcedf'>
+          <geometry>
+            <heightmap>
+              <use_terrain_paging>0</use_terrain_paging>
+              <texture>
+                <diffuse>file://media/materials/textures/grass_diffusespecular.png</diffuse>
+                <normal>file://media/materials/textures/flat_normal.png</normal>
+                <size>1</size>
+              </texture>
+              <uri>model://urdf/models/sin_wave/sin_wave.png</uri>
+              <size>10.0 10.0 2.0</size>
+              <pos>0.0 0.0 -0.1</pos>
+              <blend>
+                <min_height>0</min_height>
+                <fade_dist>0</fade_dist>
+              </blend>
+            </heightmap>
+          </geometry>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+      <pose frame=''>0 0 0 0 -0 0</pose>
+    </model>
+      
+    <state world_name='default'>
+      <sim_time>7141 356000000</sim_time>
+      <real_time>809 228375535</real_time>
+      <wall_time>1661637680 896474608</wall_time>
+        <model name='mud_box'>
+        <pose frame=''>-7.04174 -9.64287 -0.09 0.0 0.0 0.0</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>-7.04174 -9.64287 -0.09 0.0 0.0 0.0</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+       
+    <light name='sun'>
+        <pose frame=''>0 0 10 0 -0 0</pose>
+      </light>
+    </state>
+     
+  </world>
+</sdf>

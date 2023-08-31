@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<sdf version="1.5">
+  <model name="terrain_1">
+    <pose>0 0 0 0 0 0 </pose>    
+      <static>true</static>
+      <link name="body">
+      <visual name="visual_abcedf">
+          <geometry>
+           <mesh><uri>model://terrain_1/media/terrain_1.dae</uri></mesh>  
+          </geometry>
+          <material>
+            <script>
+              <uri>model://terrain_1/media/scripts</uri>
+              <uri>model://terrain_1/media/Textures</uri>
+              <name>RepeatedGrass/Diffuse</name>
+            </script>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <mesh><uri>model://terrain_1/media/terrain_1.dae</uri></mesh>
+          </geometry>
+          <surface>
+          <friction>
+            <ode>
+              <mu>50</mu>
+              <mu2>30</mu2>
+            </ode>
+          </friction>
+           <contact>
+              <collide_bitmask>0xffff</collide_bitmask>        
+          </contact>
+        </surface>
+        </collision>        
+      </link>
+    </model>
+
+
+
+  
+  
+  
+<!--   
+  <model name="dirt_plane">
+    <static>true</static>
+    <link name="link">
+      <collision name="collision">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>90 90</size>
+          </plane>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>100</mu>
+              <mu2>50</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      <visual name="visual">
+        <cast_shadows>false</cast_shadows>
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>90 90</size>
+          </plane>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://urdf/gazebo.material</uri>
+            <name>Gazebo/Texture_blend</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model> -->
+</sdf>

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node pkg="auc" type="auc_main.py" name="auc_main_node" output="screen">        
+    </node>
+    
+     
+</launch>
